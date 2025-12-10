@@ -1,0 +1,9 @@
+*.pyc
+benchmarks/
+.vscode/
+checkpoints/
+
+LICENSE
+
+Multivariate_ts/
+wh/
