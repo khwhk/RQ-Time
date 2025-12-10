@@ -41,8 +41,8 @@ python ./vqshape/pretrain.py \
     --lambda_vq_entropy 0.1 \
     --entropy_gamma 1 \
     --lr 1e-4 \
-    --batch_size 1024 \
-    --accumulate_grad_batches 4 \
+    --batch_size 512 \
+    --accumulate_grad_batches 2 \
     --gradient_clip 1 \
     --weight_decay 0.01 \
     --mask_ratio 0.25 \
