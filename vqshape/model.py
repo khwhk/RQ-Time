@@ -456,16 +456,19 @@ class VQShape(nn.Module):
         self.x_std = (x.var(dim=-1, keepdims=True) + 1e-5).sqrt()  # (batch_size, 1)
         x_p = (x - self.x_mean) / self.x_std  # (batch_size, normalize_length)
         season_res, trend = self.decomp(x_p.unsqueeze(-1))  # 分解时间序列  x.unsqueeze(1) -> (batch_size, normalize_length, 1)
-        self.season_res, self.trend = season_res.squeeze(-1), trend.squeeze(-1)  # (batch_size, normalize_length)
-        self.season_res_mean = self.season_res.mean(dim=-1, keepdims=True)
-        self.season_res_std = (self.season_res.var(dim=-1, keepdims=True) + 1e-5).sqrt()
-        self.trend_mean = self.trend.mean(dim=-1, keepdims=True)
-        self.trend_std = (self.trend.var(dim=-1, keepdims=True) + 1e-5).sqrt()
+        season_res, trend = season_res.squeeze(-1), trend.squeeze(-1)  # (batch_size, normalize_length)
+        season_res_mean = season_res.mean(dim=-1, keepdims=True)
+        season_res_std = (season_res.var(dim=-1, keepdims=True) + 1e-5).sqrt()
+        trend_mean = trend.mean(dim=-1, keepdims=True)
+        trend_std = (trend.var(dim=-1, keepdims=True) + 1e-5).sqrt()
 
-
-        season_res_embed = self.encoder((self.season_res - self.season_res_mean) / self.season_res_std)  # (batch_size, num_patch, dim_embedding)
-        trend_embed = self.encoder((self.trend - self.trend_mean) / self.trend_std)  # (batch_size, num_patch, dim_embedding)
-        output_dict = self._forward(x, season_res_embed, trend_embed, None, compute_loss=False)
+        season_res_embed = self.encoder((season_res - season_res_mean) / season_res_std)  # (batch_size, num_patch, dim_embedding)
+        trend_embed = self.encoder((trend - trend_mean) / trend_std)  # (batch_size, num_patch, dim_embedding)
+        output_dict = self._forward(x, season_res_embed, trend_embed, None, compute_loss=False,
+                                    season_res=season_res, trend=trend,
+                                    season_res_mean=season_res_mean, season_res_std=season_res_std,
+                                    trend_mean=trend_mean, trend_std=trend_std
+                                    )
 
         # Token embedding
         # tokens = torch.cat([output_dict['code'], output_dict['t_pred'], output_dict['l_pred'], output_dict['mu_pred'], output_dict['sigma_pred']], dim=-1)  # (batch_size, num_token, dim_code + 4)
@@ -493,20 +496,24 @@ class VQShape(nn.Module):
         season_res, trend = self.decomp(x_p.unsqueeze(-1))  # 分解时间序列  x.unsqueeze(1) -> (batch_size, normalize_length, 1)
         
         # print(f"[DEBUG] decomp输出 - season_res shape: {season_res.shape}, trend shape: {trend.shape}")
-        self.season_res, self.trend = season_res.squeeze(-1), trend.squeeze(-1)  # (batch_size, normalize_length)
+        season_res, trend = season_res.squeeze(-1), trend.squeeze(-1)  # (batch_size, normalize_length)
         # print(f"[DEBUG] squeeze后 - season_res shape: {self.season_res.shape}, trend shape: {self.trend.shape}")
-        self.season_res_mean = self.season_res.mean(dim=-1, keepdims=True)
-        self.season_res_std = (self.season_res.var(dim=-1, keepdims=True) + 1e-5).sqrt()
-        self.trend_mean = self.trend.mean(dim=-1, keepdims=True)
-        self.trend_std = (self.trend.var(dim=-1, keepdims=True) + 1e-5).sqrt()
+        season_res_mean = season_res.mean(dim=-1, keepdims=True)
+        season_res_std = (season_res.var(dim=-1, keepdims=True) + 1e-5).sqrt()
+        trend_mean = trend.mean(dim=-1, keepdims=True)
+        trend_std = (trend.var(dim=-1, keepdims=True) + 1e-5).sqrt()
         # print(f"[DEBUG] trend_mean shape: {self.trend_mean.shape}, trend_std shape: {self.trend_std.shape}")
 
 
-        season_res_embed = self.encoder((self.season_res - self.season_res_mean) / self.season_res_std)  # (batch_size, num_patch, dim_embedding)
-        trend_embed = self.encoder((self.trend - self.trend_mean) / self.trend_std)  # (batch_size, num_patch, dim_embedding)
+        season_res_embed = self.encoder((season_res - season_res_mean) / season_res_std)  # (batch_size, num_patch, dim_embedding)
+        trend_embed = self.encoder((trend - trend_mean) / trend_std)  # (batch_size, num_patch, dim_embedding)
     
 
-        return self._forward(x, season_res_embed, trend_embed, None, compute_loss=True)
+        return self._forward(x, season_res_embed, trend_embed, None, compute_loss=True,
+                             season_res=season_res, trend=trend,
+                             season_res_mean=season_res_mean, season_res_std=season_res_std,
+                             trend_mean=trend_mean, trend_std=trend_std
+                             )
 
     def pretrain(self, x: torch.Tensor):
         self.x_mean = x.mean(dim=-1, keepdims=True)  # (batch_size, 1)
@@ -514,23 +521,27 @@ class VQShape(nn.Module):
         # Patch and embed the ts data
         x_p = (x - self.x_mean) / self.x_std  # (batch_size, normalize_length)
         season_res, trend = self.decomp(x_p.unsqueeze(-1))  # 分解时间序列  x.unsqueeze(1) -> (batch_size, normalize_length, 1)
-        self.season_res, self.trend = season_res.squeeze(-1), trend.squeeze(-1)  # (batch_size, normalize_length)
+        season_res, trend = season_res.squeeze(-1), trend.squeeze(-1)  # (batch_size, normalize_length)
 
-        self.season_res_mean = self.season_res.mean(dim=-1, keepdims=True)
-        self.season_res_std = (self.season_res.var(dim=-1, keepdims=True) + 1e-5).sqrt()
+        season_res_mean = season_res.mean(dim=-1, keepdims=True)
+        season_res_std = (season_res.var(dim=-1, keepdims=True) + 1e-5).sqrt()
         # season_res = (season_res - self.season_res_mean) / self.season_res_std
 
-        self.trend_mean = self.trend.mean(dim=-1, keepdims=True)
-        self.trend_std = (self.trend.var(dim=-1, keepdims=True) + 1e-5).sqrt()
+        trend_mean = trend.mean(dim=-1, keepdims=True)
+        trend_std = (trend.var(dim=-1, keepdims=True) + 1e-5).sqrt()
         # trend = (trend - self.trend_mean) / self.trend_std
 
         # x_decomp = torch.stack([season_res, trend], dim=-1)  # (batch_size, normalize_length, 2)
 
-        season_res_embed = self.encoder((self.season_res - self.season_res_mean) / self.season_res_std)  # (batch_size, num_patch, dim_embedding)
-        trend_embed = self.encoder((self.trend - self.trend_mean) / self.trend_std)  # (batch_size, num_patch, dim_embedding)
+        season_res_embed = self.encoder((season_res - season_res_mean) / season_res_std)  # (batch_size, num_patch, dim_embedding)
+        trend_embed = self.encoder((trend - trend_mean) / trend_std)  # (batch_size, num_patch, dim_embedding)
 
 
-        return self._forward(x, season_res_embed, trend_embed, None, compute_loss=True)
+        return self._forward(x, season_res_embed, trend_embed, None, compute_loss=True, 
+                             season_res=season_res, trend=trend,
+                             season_res_mean=season_res_mean, season_res_std=season_res_std,
+                             trend_mean=trend_mean, trend_std=trend_std
+                             )
 
     def _forward(
             self, 
@@ -538,7 +549,10 @@ class VQShape(nn.Module):
             season_res_embed: torch.Tensor, 
             trend_embed: torch.Tensor, 
             tokenizer_attn_mask: torch.Tensor, 
-            compute_loss: bool = False
+            compute_loss: bool = False,
+            season_res=None, trend=None,
+            season_res_mean=None, season_res_std=None,
+            trend_mean=None, trend_std=None
         ):
         '''
         x: shape (batch_size, time_steps), time series data
@@ -566,18 +580,17 @@ class VQShape(nn.Module):
         # Shape Decoder
         season_hat_norm = self.shape_decoder(z_q_season)  # (bs, num_tokens, patch_size)
         trend_hat_norm = self.shape_decoder(z_q_trend)  # (bs, num_tokens, patch_size)
-        bs, num_tokens, patch_size = season_hat_norm.shape
+        # bs, num_tokens, patch_size = season_hat_norm.shape
         season_hat_norm = rearrange(season_hat_norm, "B L P -> B (L P)")  # (bs, normalize_length)
         trend_hat_norm = rearrange(trend_hat_norm, "B L P -> B (L P)")  # (bs, normalize_length)
-        season_hat = season_hat_norm * self.season_res_std + self.season_res_mean
-        trend_hat = trend_hat_norm * self.trend_std + self.trend_mean
-
+        season_hat = season_hat_norm * season_res_std + season_res_mean
+        trend_hat = trend_hat_norm * trend_std + trend_mean
         output_dict = {
             'x_true': x,
             'x_pred': x_hat,
-            's_season_true': self.season_res,
+            's_season_true': season_res,
             's_pred': season_hat,
-            's_trend_true': self.trend,
+            's_trend_true': trend,
             's_trend_pred': trend_hat,
             'code_trend': z_q_trend,
             'code_idx_trend': z_idx_trend,
@@ -593,10 +606,10 @@ class VQShape(nn.Module):
             # Reconstruction loss
             x_loss = nn.functional.mse_loss(x_hat, x)
             # s = extract_subsequence(x, t_hat, l_hat, self.len_s, smooth=self.s_smooth_factor)
-            s_loss_season = nn.functional.mse_loss(season_hat, self.season_res.detach())
-            output_dict['s_season_true'] = self.season_res
-            s_loss_trend = nn.functional.mse_loss(trend_hat, self.trend.detach())
-            output_dict['s_trend_true'] = self.trend
+            s_loss_season = nn.functional.mse_loss(season_hat, season_res.detach())
+            output_dict['s_season_true'] = season_res
+            s_loss_trend = nn.functional.mse_loss(trend_hat, trend.detach())
+            output_dict['s_trend_true'] = trend
             s_loss = s_loss_season + s_loss_trend
             z_loss = z_loss_season + z_loss_trend + z_loss_res
 

@@ -29,7 +29,7 @@ python ./vqshape/pretrain.py \
     --num_transformer_dec_heads 8 \
     --num_transformer_dec_layers 2 \
     --num_code $codebook_size \
-    --dim_code 8 \
+    --dim_code 16 \
     --codebook_type standard \
     --len_s 24 \
     --s_smooth_factor 1 \
@@ -41,18 +41,18 @@ python ./vqshape/pretrain.py \
     --lambda_vq_entropy 0.1 \
     --entropy_gamma 1 \
     --lr 1e-4 \
-    --batch_size 512 \
-    --accumulate_grad_batches 2 \
+    --batch_size 2048 \
+    --accumulate_grad_batches 4 \
     --gradient_clip 1 \
     --weight_decay 0.01 \
     --mask_ratio 0.25 \
     --warmup_step 1000 \
-    --train_epoch 50 \
+    --train_epoch 100 \
     --val_frequency 0.2 \
     --name forecasting_dim"$dim_model"_codebook"$codebook_size" \
     --num_nodes 1 \
     --num_devices 1 \
-    --strategy "ddp" \
+    --strategy "auto" \
     --precision "bf16-mixed" \
     --num_workers 8 \
     --balance_datasets

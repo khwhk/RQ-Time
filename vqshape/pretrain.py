@@ -1,5 +1,5 @@
 import sys, os
-os.environ['CUDA_VISIBLE_DEVICES'] = '2, 3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 import torch
 import argparse
@@ -187,20 +187,24 @@ class LitVQShape(L.LightningModule):
     #         plt.close(fig)
     #         plt.close(s_fig)
 
-    # def on_validation_epoch_end(self):
-    #     for i in self.validation_step_outputs.keys():
-    #         z_idx = torch.cat(self.validation_step_outputs[i]['z'], dim=0)
-    #         t_hat = torch.cat(self.validation_step_outputs[i]['t'], dim=0)
-    #         l_hat = torch.cat(self.validation_step_outputs[i]['l'], dim=0)
-    #         fig = plot_code_heatmap(z_idx, self.hparams.num_code, title=f"{self.global_step}")
-    #         self.logger.experiment.log({
-    #             f"VAL{i}/z_dist": wandb.Image(fig),
-    #             f"VAL{i}/t_dist": wandb.Histogram(t_hat.float().cpu().numpy()),
-    #             f"VAL{i}/l_dist": wandb.Histogram(l_hat.float().cpu().numpy())
-    #         }, self.global_step)
-    #         for key in self.validation_step_outputs[i].keys():
-    #             self.validation_step_outputs[i][key].clear()
-    #         plt.close(fig)
+    def on_validation_epoch_end(self):
+        for dataload_idx in self.validation_step_outputs:
+            for key in self.validation_step_outputs[dataload_idx]:
+                self.validation_step_outputs[dataload_idx][key].clear()
+        torch.cuda.empty_cache()
+        # for i in self.validation_step_outputs.keys():
+        #     z_idx = torch.cat(self.validation_step_outputs[i]['z'], dim=0)
+        #     t_hat = torch.cat(self.validation_step_outputs[i]['t'], dim=0)
+        #     l_hat = torch.cat(self.validation_step_outputs[i]['l'], dim=0)
+            # fig = plot_code_heatmap(z_idx, self.hparams.num_code, title=f"{self.global_step}")
+            # self.logger.experiment.log({
+            #     f"VAL{i}/z_dist": wandb.Image(fig),
+            #     f"VAL{i}/t_dist": wandb.Histogram(t_hat.float().cpu().numpy()),
+            #     f"VAL{i}/l_dist": wandb.Histogram(l_hat.float().cpu().numpy())
+            # }, self.global_step)
+        # for key in self.validation_step_outputs[i].keys():
+        #     self.validation_step_outputs[i][key].clear()
+            # plt.close(fig)
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
@@ -292,9 +296,9 @@ def main(args):
     trainer = L.Trainer(
         fast_dev_run=args.dev,
         default_root_dir=args.save_dir,
-        strategy='ddp_find_unused_parameters_true', # strategy_dict[args.strategy]
+        strategy=strategy_dict[args.strategy], # strategy_dict[args.strategy]
         accelerator='gpu',
-        devices=-1,  # 方法2：明确使用第一个可见GPU（即GPU2）
+        devices=[0],  # 方法2：明确使用第一个可见GPU（即GPU2）
         # devices=args.num_devices,
         num_nodes=args.num_nodes,
         precision=args.precision,
